@@ -135,3 +135,7 @@ project/
    ```
 
 8. **Collect the results** — finished outputs are in `output/` (one file per subtask, same names as in `tasks/`). The final console summary tells you how many steps succeeded and lists any failed ones.
+=======
+# Task-Orchestrator-via-Local-LLM-Ollama-LM-Studio-
+Task Orchestrator via Local LLM (Ollama / LM Studio)
+
