@@ -67,7 +67,8 @@ project/
 ├── progress.json    # created by script — per-step status (done / pending / failed)
 ├── config.json      # created on first run — saved backend/base_url/model choice
 ├── requirements.txt # Python dependencies (requests)
-├── start.bat        # Windows launcher
+├── install.bat      # Windows setup: creates venv/ and installs dependencies
+├── start.bat        # Windows launcher (uses venv/ if present)
 └── README.md        # this file
 ```
 
@@ -94,3 +95,43 @@ project/
 - Generation timeout is 300 seconds per request since local inference can be slow.
 - Only one model is used for the whole run; multi-model comparison is out of scope.
 - Recommend testing with `--dry-run` first to inspect the generated plan before the (slower) execution phase.
+
+## Step-by-Step Usage Guide
+
+1. **Install everything** — double-click `install.bat` (or run it from a console). It creates the `venv/` virtual environment and installs `requests` into it.
+   ```bat
+   install.bat
+   ```
+
+2. **Start the backend** — launch Ollama (`ollama serve`, models via `ollama pull <name>`) or LM Studio (start the server on `http://localhost:1234` and load a model). The script cannot work without a running server.
+
+3. **Describe your task** — open `task.md` and write what needs to be done (any language, plain Markdown). Example:
+   ```markdown
+   # Build a landing page
+   Create a single-page site with a hero section, features grid,
+   contact form, responsive styles, and a final self-review pass.
+   ```
+
+4. **Preview the plan (recommended)** — generate subtasks without executing them:
+   ```bat
+   start.bat --dry-run --lang en
+   ```
+   Use `--lang ru` if you want the plan and subtasks in Russian. Inspect the files in `tasks/` (`01_...md`, `02_...md`, …). If a step looks wrong, edit the `.md` file directly.
+
+5. **Run the full pipeline**:
+   ```bat
+   start.bat
+   ```
+   On the first run you pick a backend (1 = Ollama, 2 = LM Studio) and a model; the choice is saved to `config.json`. Each step's answer lands in `output/NN_slug.md`, progress is tracked in `progress.json`, and a progress bar shows `done/total (%)`.
+
+6. **If something fails** — failed steps are marked `failed` in `progress.json` and the run continues. Fix the cause (e.g. start the server, pick a stronger model), then resume without re-planning:
+   ```bat
+   start.bat --resume
+   ```
+
+7. **To switch backend/model** — re-run the setup:
+   ```bat
+   start.bat --reconfigure
+   ```
+
+8. **Collect the results** — finished outputs are in `output/` (one file per subtask, same names as in `tasks/`). The final console summary tells you how many steps succeeded and lists any failed ones.
