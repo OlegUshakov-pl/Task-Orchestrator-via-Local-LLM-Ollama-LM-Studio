@@ -488,6 +488,74 @@ def short_summary_line(answer, max_len=200):
     return answer.strip().replace("\n", " ")[:max_len]
 
 
+def extract_code_block(answer):
+    """Extract the largest code payload from a model answer.
+
+    Prefers ```html fences, then any ``` fence, then raw HTML
+    starting at <!DOCTYPE or <html. Returns None if nothing found.
+    """
+    fences = re.findall(r"```(?:html)?\s*(.*?)```", answer,
+                        re.DOTALL | re.IGNORECASE)
+    if fences:
+        # largest block is usually the full file, not a snippet
+        return max((b.strip() for b in fences), key=len)
+    lower = answer.lower()
+    for marker in ("<!doctype", "<html"):
+        idx = lower.find(marker)
+        if idx != -1:
+            return answer[idx:].strip()
+    return None
+
+
+def target_file_for_task(task_file):
+    """Parse 'File: <name>' from a task file, safe basename only."""
+    try:
+        text = task_file.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    m = re.search(r"^\s*File:\s*(.+?)\s*$", text,
+                  re.MULTILINE | re.IGNORECASE)
+    if not m:
+        return ""
+    name = m.group(1).strip().strip("`\"'")
+    # keep only basename to avoid path traversal (../../etc)
+    name = Path(name).name
+    if not name or name in (".", ".."):
+        return ""
+    return name
+
+
+def finalize_outputs(task_files):
+    """Write clean code files (e.g. index.html) next to output/*.md.
+
+    Each step's answer is scanned for a code block; the block is saved
+    under the 'File:' name declared in its task file. Steps sharing
+    the same target overwrite each other, so the last done step wins.
+    Returns dict {target_name: source_md_name}.
+    """
+    written = {}
+    for tf in task_files:
+        out_md = OUTPUT_DIR / tf.name
+        if not out_md.exists():
+            continue
+        target = target_file_for_task(tf)
+        if not target:
+            continue
+        try:
+            answer = out_md.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        code = extract_code_block(answer)
+        if not code:
+            continue
+        try:
+            (OUTPUT_DIR / target).write_text(code, encoding="utf-8")
+            written[target] = tf.name
+        except OSError as e:
+            print(f"Could not write final file {target}: {e}")
+    return written
+
+
 def execute_steps(cfg, task_files, lang="en"):
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     texts = lang_texts(lang)
@@ -651,7 +719,14 @@ def main():
         sys.exit(1)
     failed, total_time = execute_steps(cfg, task_files, args.lang)
 
-    # Step 5: summary
+    # Step 5: assemble clean final files (e.g. output/index.html)
+    finalized = finalize_outputs(task_files)
+    if finalized:
+        print("Final files:")
+        for target, src in finalized.items():
+            print(f"  - {target} (from {src})")
+
+    # Step 6: summary
     progress = load_progress() or {}
     done = sum(1 for s in progress.get("steps", []) if s.get("status") == "done")
     print("\n=== Summary ===")
