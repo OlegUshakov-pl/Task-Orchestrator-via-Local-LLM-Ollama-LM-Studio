@@ -1,3 +1,5 @@
+![Image](image.png)
+
 # Task Orchestrator via Local LLM (Ollama / LM Studio)
 
 Splits a task into subtasks and executes them step-by-step via a local LLM through Ollama or LM Studio.
