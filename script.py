@@ -408,7 +408,7 @@ def build_plan(cfg, task_content, lang="en"):
             p = prompt if attempt == 0 else (prompt + "\n\n" + texts["retry"])
             # Last attempt: drop format=json — some models return empty
             # response with it enforced, but produce parseable JSON anyway.
-            use_json = need_json and attempt < 2
+            use_json = attempt < 2
             raw = generate(cfg, p, need_json=use_json)
             data = extract_json(raw)
             steps = validate_plan(data)
