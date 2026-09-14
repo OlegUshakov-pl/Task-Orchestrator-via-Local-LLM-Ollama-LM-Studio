@@ -2,17 +2,35 @@
 setlocal
 cd /d "%~dp0"
 
-set "PY=python"
-if exist "venv\Scripts\python.exe" set "PY=venv\Scripts\python.exe"
+chcp 65001 >nul 2>nul
 
-where python >nul 2>nul
-if %errorlevel% neq 0 (
-    if not exist "venv\Scripts\python.exe" (
-        echo Python not found. Please install Python 3.14+ and add it to PATH.
-        echo Or run install.bat once to create the virtual environment.
+if not exist "script.py" (
+    echo ERROR: script.py not found in "%~dp0".
+    pause
+    exit /b 1
+)
+
+set "PY=venv\Scripts\python.exe"
+if not exist "%PY%" (
+    echo Virtual environment not found. Creating it now...
+    where python >nul 2>nul
+    if %errorlevel% neq 0 (
+        echo ERROR: Python not found. Please install Python 3.14+ and add it to PATH.
         pause
         exit /b 1
     )
+    python -m venv venv
+    if %errorlevel% neq 0 (
+        echo ERROR: Failed to create the virtual environment.
+        pause
+        exit /b 1
+    )
+    echo Virtual environment created.
 )
+
 "%PY%" script.py %*
+set "CODE=%errorlevel%"
+echo.
+echo Exit code: %CODE%
 pause
+exit /b %CODE%

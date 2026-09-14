@@ -10,10 +10,12 @@ Splits a task into subtasks and executes them step-by-step via a local LLM throu
 
 ## Installation
 
-No installation required. Optional: create an isolated virtual environment with `install.bat` (Windows):
+No installation required — just run `start.bat` (Windows), it creates the
+`venv/` virtual environment automatically on first launch. You can also run
+directly with your system Python:
 
 ```bat
-install.bat
+python script.py
 ```
 
 ## Usage
@@ -62,9 +64,7 @@ project/
 ├── output/          # created by script — model answers per subtask
 ├── progress.json    # created by script — per-step status (done / pending / failed)
 ├── config.json      # created on first run — saved backend/base_url/model choice
-├── requirements.txt # kept for tooling; no third-party packages required
-├── install.bat      # Windows setup: creates venv/ and installs dependencies
-├── start.bat        # Windows launcher (uses venv/ if present)
+├── start.bat        # Windows launcher (creates venv/ if missing, forwards all args)
 └── README.md        # this file
 ```
 
@@ -94,9 +94,9 @@ project/
 
 ## Step-by-Step Usage Guide
 
-1. **Install everything** — double-click `install.bat` (or run it from a console). It creates the `venv/` virtual environment. No packages need downloading: the script uses only the standard library.
+1. **Set up (first run only)** — just launch `start.bat`; it creates the `venv/` virtual environment automatically. No packages need downloading: the script uses only the standard library.
    ```bat
-   install.bat
+   start.bat --help
    ```
 
 2. **Start the backend** — launch Ollama (`ollama serve`, models via `ollama pull <name>`) or LM Studio (start the server on `http://localhost:1234` and load a model). The script cannot work without a running server.
