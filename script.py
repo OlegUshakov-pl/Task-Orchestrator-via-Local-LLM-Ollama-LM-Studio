@@ -294,7 +294,16 @@ def choose_backend_and_model():
 
 def generate_ollama(base_url, model, prompt, need_json=False):
     url = base_url.rstrip("/") + "/api/generate"
-    body = {"model": model, "prompt": prompt, "stream": False}
+    body = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        # Thinking/reasoning models (qwen3, deepseek-r1, etc.) return empty
+        # `response` when `format=json` is forced. Disable thinking so we
+        # actually get JSON back.
+        "think": False,
+        "options": {"temperature": 0.1},
+    }
     if need_json:
         body["format"] = "json"
     try:
@@ -306,7 +315,16 @@ def generate_ollama(base_url, model, prompt, need_json=False):
         )
     if not isinstance(data, dict):
         raise RuntimeError(f"Ollama returned an unexpected response format: {data}")
-    return data.get("response", "")
+    resp = (data.get("response") or "").strip()
+    if not resp:
+        # Help debugging: show what Ollama actually returned
+        keys = list(data.keys())
+        raise RuntimeError(
+            f"Ollama returned an empty response (keys: {keys}). "
+            f"Model '{model}' may not support format=json or is still loading. "
+            f"Full reply: {json.dumps(data, ensure_ascii=False)[:1000]}"
+        )
+    return resp
 
 
 def generate_lmstudio(base_url, model, prompt):
@@ -388,7 +406,10 @@ def build_plan(cfg, task_content, lang="en"):
     for attempt in range(3):  # 1 initial + 2 retries
         try:
             p = prompt if attempt == 0 else (prompt + "\n\n" + texts["retry"])
-            raw = generate(cfg, p, need_json=True)
+            # Last attempt: drop format=json — some models return empty
+            # response with it enforced, but produce parseable JSON anyway.
+            use_json = need_json and attempt < 2
+            raw = generate(cfg, p, need_json=use_json)
             data = extract_json(raw)
             steps = validate_plan(data)
             return steps, raw
