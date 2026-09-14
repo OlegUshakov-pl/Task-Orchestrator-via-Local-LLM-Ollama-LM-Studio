@@ -45,6 +45,10 @@ CLI flags:
   ```bat
   python script.py --dry-run
   ```
+- `--lang {en,ru}` — language of the generated plan/subtasks (default: `en`); console messages stay in English
+  ```bat
+  python script.py --dry-run --lang ru
+  ```
 
 On Windows you can also use `start.bat` (it checks Python, installs `requests` if missing, and forwards all arguments):
 
