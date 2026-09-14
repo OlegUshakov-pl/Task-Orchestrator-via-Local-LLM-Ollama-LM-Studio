@@ -11,7 +11,6 @@ import json
 import re
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 
 try:
@@ -171,8 +170,11 @@ def load_config():
         try:
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
-            if all(k in cfg for k in ("backend", "base_url", "model")):
+            if (all(k in cfg for k in ("backend", "base_url", "model"))
+                    and cfg["backend"] in ("ollama", "lmstudio")):
                 return cfg
+            print(f"Ignoring {CONFIG_FILE.name}: unknown backend "
+                  f"'{cfg.get('backend')}', reconfiguration is required.")
         except (json.JSONDecodeError, OSError) as e:
             print(f"Could not read config.json ({e}), reconfiguration is required.")
     return None
@@ -455,7 +457,6 @@ def execute_steps(cfg, task_files, lang="en"):
 
     progress = load_progress()
     # Rebuild progress if it doesn't match current task files
-    fnames = [p.name for p in task_files]
     if (progress is None or "steps" not in progress
             or len(progress["steps"]) != total):
         progress = {"steps": [
