@@ -21,22 +21,15 @@ if not exist "venv\Scripts\python.exe" (
     echo Virtual environment already exists.
 )
 
-echo Installing dependencies into venv...
-"venv\Scripts\python.exe" -m pip install --upgrade pip
+echo Checking interpreter...
+"venv\Scripts\python.exe" --version
 if %errorlevel% neq 0 (
-    echo Failed to upgrade pip.
-    pause
-    exit /b 1
-)
-
-"venv\Scripts\python.exe" -m pip install -r requirements.txt
-if %errorlevel% neq 0 (
-    echo Failed to install dependencies. Check your internet connection and pip setup.
+    echo Virtual environment seems broken. Delete the venv folder and run install.bat again.
     pause
     exit /b 1
 )
 
 echo.
-echo Done. Activate with: venv\Scripts\activate
-echo Run with: venv\Scripts\python.exe script.py
+echo Done. No third-party packages required (standard library only).
+echo Run with: start.bat
 pause

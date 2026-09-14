@@ -5,19 +5,15 @@ Splits a task into subtasks and executes them step-by-step via a local LLM throu
 ## Requirements
 
 - Python 3.14+
-- `requests` library
+- No third-party packages — `script.py` uses only the Python standard library (`urllib`)
 - A running Ollama (`http://localhost:11434`) or LM Studio (`http://localhost:1234`) instance with at least one model pulled/loaded
 
 ## Installation
 
-```bat
-pip install -r requirements.txt
-```
-
-Or minimal:
+No installation required. Optional: create an isolated virtual environment with `install.bat` (Windows):
 
 ```bat
-pip install requests
+install.bat
 ```
 
 ## Usage
@@ -50,7 +46,7 @@ CLI flags:
   python script.py --dry-run --lang ru
   ```
 
-On Windows you can also use `start.bat` (it checks Python, installs `requests` if missing, and forwards all arguments):
+On Windows you can also use `start.bat` (it picks `venv/` Python if present and forwards all arguments):
 
 ```bat
 start.bat --dry-run
@@ -66,7 +62,7 @@ project/
 ├── output/          # created by script — model answers per subtask
 ├── progress.json    # created by script — per-step status (done / pending / failed)
 ├── config.json      # created on first run — saved backend/base_url/model choice
-├── requirements.txt # Python dependencies (requests)
+├── requirements.txt # kept for tooling; no third-party packages required
 ├── install.bat      # Windows setup: creates venv/ and installs dependencies
 ├── start.bat        # Windows launcher (uses venv/ if present)
 └── README.md        # this file
@@ -98,7 +94,7 @@ project/
 
 ## Step-by-Step Usage Guide
 
-1. **Install everything** — double-click `install.bat` (or run it from a console). It creates the `venv/` virtual environment and installs `requests` into it.
+1. **Install everything** — double-click `install.bat` (or run it from a console). It creates the `venv/` virtual environment. No packages need downloading: the script uses only the standard library.
    ```bat
    install.bat
    ```

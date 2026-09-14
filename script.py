@@ -9,15 +9,12 @@ Supports backends:
 import argparse
 import json
 import re
+import socket
 import sys
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
-
-try:
-    import requests
-except ImportError:
-    print("Missing dependency 'requests'. Install it: pip install requests")
-    sys.exit(1)
 
 # Non-UTF-8 Windows consoles (e.g. cp1250) may fail on some Unicode characters;
 # fall back to replacement chars instead of crashing on print()/argparse help.
@@ -188,46 +185,74 @@ def save_config(cfg):
 
 # --------------------------------------------------------------- backend ---
 
+def http_json(method, url, payload=None, timeout=15):
+    """Send an HTTP request with an optional JSON body, return parsed JSON.
+
+    Uses only the standard library. Raises:
+      - ConnectionError on connection failures (server not running, timeout)
+      - RuntimeError on HTTP error statuses or invalid JSON responses
+    """
+    data = None
+    headers = {}
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            status = resp.status
+            body = resp.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as e:
+        try:
+            detail = e.read().decode("utf-8", errors="replace")[:500]
+        except Exception:
+            detail = ""
+        raise RuntimeError(f"HTTP {e.code} from {url}: {detail}")
+    except (urllib.error.URLError, TimeoutError, socket.timeout, OSError) as e:
+        reason = getattr(e, "reason", e)
+        raise ConnectionError(f"Could not connect to {url}: {reason}")
+    if status >= 400:
+        raise RuntimeError(f"HTTP {status} from {url}: {body[:500]}")
+    try:
+        return json.loads(body)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"Invalid JSON from {url}: {e}")
+
+
 def fetch_ollama_models(base_url):
     url = base_url.rstrip("/") + "/api/tags"
     try:
-        r = requests.get(url, timeout=LIST_MODELS_TIMEOUT)
-        r.raise_for_status()
-    except requests.ConnectionError:
+        data = http_json("GET", url, timeout=LIST_MODELS_TIMEOUT)
+    except ConnectionError:
         print(f"Could not connect to ollama at {url}. "
               f"Make sure the server is running.")
         return []
-    except requests.RequestException as e:
+    except RuntimeError as e:
         print(f"Error while fetching the Ollama model list: {e}")
         return []
-    try:
-        data = r.json()
-    except json.JSONDecodeError:
-        print("Ollama returned invalid JSON for the model list request.")
+    if not isinstance(data, dict):
+        print("Ollama returned an unexpected model list format.")
         return []
     models = data.get("models", [])
-    return [m.get("name") for m in models if m.get("name")]
+    return [m.get("name") for m in models if isinstance(m, dict) and m.get("name")]
 
 
 def fetch_lmstudio_models(base_url):
     url = base_url.rstrip("/") + "/v1/models"
     try:
-        r = requests.get(url, timeout=LIST_MODELS_TIMEOUT)
-        r.raise_for_status()
-    except requests.ConnectionError:
+        data = http_json("GET", url, timeout=LIST_MODELS_TIMEOUT)
+    except ConnectionError:
         print(f"Could not connect to lmstudio at {url}. "
               f"Make sure the server is running.")
         return []
-    except requests.RequestException as e:
+    except RuntimeError as e:
         print(f"Error while fetching the LM Studio model list: {e}")
         return []
-    try:
-        data = r.json()
-    except json.JSONDecodeError:
-        print("LM Studio returned invalid JSON for the model list request.")
+    if not isinstance(data, dict):
+        print("LM Studio returned an unexpected model list format.")
         return []
     items = data.get("data", [])
-    return [m.get("id") for m in items if m.get("id")]
+    return [m.get("id") for m in items if isinstance(m, dict) and m.get("id")]
 
 
 def choose_backend_and_model():
@@ -273,17 +298,14 @@ def generate_ollama(base_url, model, prompt, need_json=False):
     if need_json:
         body["format"] = "json"
     try:
-        r = requests.post(url, json=body, timeout=GENERATION_TIMEOUT)
-        r.raise_for_status()
-    except requests.ConnectionError:
+        data = http_json("POST", url, payload=body, timeout=GENERATION_TIMEOUT)
+    except ConnectionError:
         raise ConnectionError(
             f"Could not connect to ollama at {url}. "
             f"Make sure the server is running."
         )
-    try:
-        data = r.json()
-    except json.JSONDecodeError as e:
-        raise RuntimeError(f"Ollama returned invalid JSON: {e}")
+    if not isinstance(data, dict):
+        raise RuntimeError(f"Ollama returned an unexpected response format: {data}")
     return data.get("response", "")
 
 
@@ -295,17 +317,14 @@ def generate_lmstudio(base_url, model, prompt):
         "stream": False,
     }
     try:
-        r = requests.post(url, json=body, timeout=GENERATION_TIMEOUT)
-        r.raise_for_status()
-    except requests.ConnectionError:
+        data = http_json("POST", url, payload=body, timeout=GENERATION_TIMEOUT)
+    except ConnectionError:
         raise ConnectionError(
             f"Could not connect to lmstudio at {url}. "
             f"Make sure the server is running."
         )
-    try:
-        data = r.json()
-    except json.JSONDecodeError as e:
-        raise RuntimeError(f"LM Studio returned invalid JSON: {e}")
+    if not isinstance(data, dict):
+        raise RuntimeError(f"LM Studio returned an unexpected response format: {data}")
     try:
         return data["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError) as e:
@@ -495,7 +514,7 @@ def execute_steps(cfg, task_files, lang="en"):
         t0 = time.time()
         try:
             answer = generate(cfg, prompt, need_json=False)
-        except (ConnectionError, RuntimeError, requests.RequestException) as e:
+        except (ConnectionError, RuntimeError, OSError) as e:
             duration = round(time.time() - t0, 1)
             print(f"Error on step {slug}: {e}")
             entry.update({"slug": slug, "status": "failed",
