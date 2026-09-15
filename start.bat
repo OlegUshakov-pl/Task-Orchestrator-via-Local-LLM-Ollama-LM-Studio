@@ -10,25 +10,14 @@ if not exist "script.py" (
     exit /b 1
 )
 
-set "PY=venv\Scripts\python.exe"
-if not exist "%PY%" (
-    echo Virtual environment not found. Creating it now...
-    where python >nul 2>nul
-    if %errorlevel% neq 0 (
-        echo ERROR: Python not found. Please install Python 3.14+ and add it to PATH.
-        pause
-        exit /b 1
-    )
-    python -m venv venv
-    if %errorlevel% neq 0 (
-        echo ERROR: Failed to create the virtual environment.
-        pause
-        exit /b 1
-    )
-    echo Virtual environment created.
+where python >nul 2>nul
+if %errorlevel% neq 0 (
+    echo ERROR: Python not found. Please install Python and add it to PATH.
+    pause
+    exit /b 1
 )
 
-"%PY%" script.py %*
+python script.py %*
 set "CODE=%errorlevel%"
 echo.
 echo Exit code: %CODE%
