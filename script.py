@@ -480,6 +480,16 @@ def progress_bar(done, total, slug, width=20):
     print(f"[{bar}] {done}/{total} ({pct:.0%}) - running: {slug}")
 
 
+def format_duration(seconds):
+    """Format seconds as Xm Ys, e.g. 90.5 -> '1m 30.5s'."""
+    seconds = float(seconds)
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    m = int(seconds // 60)
+    s = seconds % 60
+    return f"{m}m {s:.1f}s"
+
+
 def short_summary_line(answer, max_len=200):
     for line in answer.splitlines():
         line = line.strip().lstrip("#-* ").strip()
@@ -730,7 +740,7 @@ def main():
     progress = load_progress() or {}
     done = sum(1 for s in progress.get("steps", []) if s.get("status") == "done")
     print("\n=== Summary ===")
-    print(f"Done: {done}/{len(task_files)} in {total_time} s.")
+    print(f"Done: {done}/{len(task_files)} in {format_duration(total_time)} ({total_time} s).")
     print(f"Subtask files: {TASKS_DIR}/")
     print(f"Result files: {OUTPUT_DIR}/")
     if failed:
